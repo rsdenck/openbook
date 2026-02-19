@@ -1,0 +1,101 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Getting Started with OpenBook"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "OpenBook is a scalable, modular documentation platform designed for modern engineering teams."
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "attrs": {
+        "type": "info",
+        "emoji": "💡"
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "This content is stored as structured JSON, not HTML!"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Features"
+        }
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "content": [
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Block-based editing"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Real-time collaboration"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "code_block",
+      "attrs": {
+        "language": "go"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "func main() {\n  fmt.Println(\"Hello, OpenBook!\")\n}"
+        }
+      ]
+    }
+  ]
+}

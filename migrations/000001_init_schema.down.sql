@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS permissions;
+DROP TABLE IF EXISTS deployments;
+DROP TABLE IF EXISTS page_versions;
+DROP TABLE IF EXISTS pages;
+DROP TABLE IF EXISTS collections;
+DROP TABLE IF EXISTS spaces;
+DROP TABLE IF EXISTS workspace_members;
+DROP TABLE IF EXISTS workspaces;
+DROP TABLE IF EXISTS users;
+DROP EXTENSION IF EXISTS "uuid-ossp";

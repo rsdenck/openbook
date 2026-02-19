@@ -41,6 +41,7 @@ jobs:
         VERSION: ${{ steps.vars.outputs.VERSION }}
       run: |
         mkdir -p dist
+        # Declare array correctly for bash
         targets=(
           "linux/amd64"
           "linux/arm64"
@@ -56,15 +57,27 @@ jobs:
           echo "Building for $os/$arch..."
           
           # Build API
-          GOOS=$os GOARCH=$arch go build -ldflags "-s -w -X main.version=$VERSION" -o dist/openbook-api$ext ./cmd/api
+          GOOS=$os GOARCH=$arch go build -ldflags "-s -w -X main.version=$VERSION" -o "dist/openbook-api-$os-$arch$ext" ./cmd/api
           
           # Build Worker
-          GOOS=$os GOARCH=$arch go build -ldflags "-s -w -X main.version=$VERSION" -o dist/openbook-worker$ext ./cmd/worker
+          GOOS=$os GOARCH=$arch go build -ldflags "-s -w -X main.version=$VERSION" -o "dist/openbook-worker-$os-$arch$ext" ./cmd/worker
           
           # Package
           cd dist
-          tar -czvf "openbook_${VERSION}_${os}_${arch}.tar.gz" openbook-api$ext openbook-worker$ext ../README.md ../LICENSE ../install.sh
-          rm openbook-api$ext openbook-worker$ext
+          # Create a temp directory for packaging
+          pkg_dir="openbook_${VERSION}_${os}_${arch}"
+          mkdir -p "$pkg_dir"
+          
+          cp "openbook-api-$os-$arch$ext" "$pkg_dir/openbook-api$ext"
+          cp "openbook-worker-$os-$arch$ext" "$pkg_dir/openbook-worker$ext"
+          cp ../README.md "$pkg_dir/"
+          cp ../LICENSE "$pkg_dir/" || touch "$pkg_dir/LICENSE" # Fallback if no license
+          cp ../install.sh "$pkg_dir/"
+          
+          tar -czvf "openbook_${VERSION}_${os}_${arch}.tar.gz" -C . "$pkg_dir"
+          
+          # Cleanup
+          rm -rf "$pkg_dir" "openbook-api-$os-$arch$ext" "openbook-worker-$os-$arch$ext"
           cd ..
         done
 

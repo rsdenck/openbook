@@ -1,0 +1,83 @@
+name: OpenBook Pull Request CI
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  code-quality:
+    name: Code Quality & Standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 1. Commit Lint (Padronização de Commit)
+      - name: Validate Commit Messages
+        uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: .commitlintrc.json
+          failOnWarnings: false # Let's not block yet, but report
+
+      # 2. Setup Go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      # 3. GolangCI-Lint (Substitui ESLint para Go)
+      - name: Run GolangCI-Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=5m
+
+  test-coverage:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: openbook
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: openbook_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      # 4. Run Tests with Coverage (Substitui "lest")
+      - name: Run Tests with Coverage
+        env:
+          TEST_DB_DSN: "postgres://openbook:password@localhost:5432/openbook_test?sslmode=disable"
+          TEST_REDIS_ADDR: "localhost:6379"
+        run: |
+          go test -v -covermode=atomic -coverprofile=coverage.out ./...
+
+      # 5. Upload Coverage to Coveralls
+      - name: Send coverage to Coveralls
+        uses: shogo82148/actions-goveralls@v1
+        with:
+          path-to-profile: coverage.out

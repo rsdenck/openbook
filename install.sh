@@ -43,16 +43,18 @@ log_info "Detected System: $OS/$ARCH"
 # --- Resolve Version ---
 VERSION=$1
 if [ -z "$VERSION" ]; then
-    log_info "Fetching latest version..."
+    log_info "Fetching latest version tag..."
+    # Try to fetch latest release tag from GitHub API
     VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 fi
 
-if [ -z "$VERSION" ]; then
-    log_error "Could not determine version to install."
-    exit 1
+# Fallback if API fails or no release found
+if [ -z "$VERSION" ] || [ "$VERSION" == "null" ]; then
+    log_info "Could not detect latest version from API. Defaulting to v1.0.0"
+    VERSION="v1.0.0"
 fi
 
-log_info "Installing OpenBook $VERSION..."
+log_info "Target Version: $VERSION"
 
 # --- Download ---
 FILENAME="openbook_${VERSION}_${OS}_${ARCH}.tar.gz"
@@ -60,8 +62,12 @@ URL="https://github.com/$REPO/releases/download/$VERSION/$FILENAME"
 TMP_DIR=$(mktemp -d)
 
 log_info "Downloading from $URL..."
-if ! curl -L -o "$TMP_DIR/$FILENAME" "$URL"; then
-    log_error "Download failed."
+HTTP_STATUS=$(curl -L -o "$TMP_DIR/$FILENAME" -w "%{http_code}" "$URL")
+
+if [ "$HTTP_STATUS" -ne 200 ]; then
+    log_error "Download failed with HTTP status $HTTP_STATUS"
+    log_error "URL: $URL"
+    log_error "Please check if the release version exists."
     exit 1
 fi
 
@@ -71,14 +77,31 @@ CHECKSUMS_URL="https://github.com/$REPO/releases/download/$VERSION/checksums.txt
 curl -sL -o "$TMP_DIR/checksums.txt" "$CHECKSUMS_URL"
 
 cd "$TMP_DIR"
-if ! sha256sum -c checksums.txt --ignore-missing --status; then
-    log_error "Checksum verification failed!"
-    exit 1
+if [ -f "checksums.txt" ]; then
+    # Filter checksums for the downloaded file only
+    grep "$FILENAME" checksums.txt > checksums_target.txt
+    if ! sha256sum -c checksums_target.txt --status; then
+         log_error "Checksum verification failed!"
+         log_error "Expected: $(cat checksums_target.txt)"
+         log_error "Calculated: $(sha256sum $FILENAME)"
+         exit 1
+    fi
+    log_info "Checksum verified."
+else
+    log_info "No checksums.txt found, skipping verification (NOT RECOMMENDED)."
 fi
-log_info "Checksum verified."
 
 # --- Extract ---
+log_info "Extracting package..."
 tar -xzf "$FILENAME"
+
+# Find extracted directory (it might be openbook_vX.Y.Z_linux_amd64 or just flat)
+# The tar structure in release.yml is: openbook_${VERSION}_${os}_${arch}.tar.gz containing openbook_${VERSION}_${os}_${arch}/...
+PKG_DIR_NAME="openbook_${VERSION}_${OS}_${ARCH}"
+
+if [ -d "$PKG_DIR_NAME" ]; then
+    cd "$PKG_DIR_NAME"
+fi
 
 # --- Create User ---
 if ! id "$USER" &>/dev/null; then
@@ -87,7 +110,7 @@ if ! id "$USER" &>/dev/null; then
 fi
 
 # --- Install Files ---
-log_info "Installing binaries..."
+log_info "Installing binaries to $BIN_DIR..."
 mkdir -p "$BIN_DIR" "$LOG_DIR" "$STORAGE_DIR"
 
 # Stop services if running

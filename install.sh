@@ -50,8 +50,8 @@ fi
 
 # Fallback if API fails or no release found
 if [ -z "$VERSION" ] || [ "$VERSION" == "null" ]; then
-    log_info "Could not detect latest version from API. Defaulting to v1.0.2"
-    VERSION="v1.0.2"
+    log_info "Could not detect latest version from API. Defaulting to v1.0.3"
+    VERSION="v1.0.3"
 fi
 
 log_info "Target Version: $VERSION"
@@ -133,10 +133,10 @@ STORAGE_PATH=$STORAGE_DIR
 
 # Database (PostgreSQL)
 # Format: postgres://user:password@host:port/dbname?sslmode=disable
-DB_DSN=postgres://postgres:postgres@localhost:5432/openbook?sslmode=disable
+DB_DSN=postgres://postgres:postgres@127.0.0.1:5432/openbook?sslmode=disable
 
 # Redis
-REDIS_ADDR=localhost:6379
+REDIS_ADDR=127.0.0.1:6379
 REDIS_PASSWORD=
 REDIS_DB=0
 EOF

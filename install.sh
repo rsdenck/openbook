@@ -123,6 +123,30 @@ chmod +x "$BIN_DIR/openbook-api" "$BIN_DIR/openbook-worker"
 # Set Permissions
 chown -R "$USER:$GROUP" "$INSTALL_DIR"
 
+# --- Configuration ---
+if [ ! -f /etc/default/openbook ]; then
+    log_info "Creating default configuration at /etc/default/openbook..."
+    cat > /etc/default/openbook <<EOF
+# OpenBook Configuration
+APP_PORT=8080
+STORAGE_PATH=$STORAGE_DIR
+
+# Database (PostgreSQL)
+# Format: postgres://user:password@host:port/dbname?sslmode=disable
+DB_DSN=postgres://postgres:postgres@localhost:5432/openbook?sslmode=disable
+
+# Redis
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=
+REDIS_DB=0
+EOF
+    log_info "Configuration created. Please edit /etc/default/openbook with your database credentials."
+fi
+
+# Ensure config is readable by the service user
+chown root:$GROUP /etc/default/openbook
+chmod 640 /etc/default/openbook
+
 # --- Systemd Setup ---
 log_info "Configuring Systemd..."
 
@@ -130,7 +154,8 @@ log_info "Configuring Systemd..."
 cat > /etc/systemd/system/openbook-api.service <<EOF
 [Unit]
 Description=OpenBook API
-After=network.target
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
 
 [Service]
 User=$USER
@@ -138,8 +163,9 @@ Group=$GROUP
 WorkingDirectory=$INSTALL_DIR
 ExecStart=$BIN_DIR/openbook-api
 Restart=always
+RestartSec=5
 LimitNOFILE=65535
-EnvironmentFile=-/etc/default/openbook
+EnvironmentFile=/etc/default/openbook
 
 [Install]
 WantedBy=multi-user.target
@@ -149,7 +175,8 @@ EOF
 cat > /etc/systemd/system/openbook-worker.service <<EOF
 [Unit]
 Description=OpenBook Worker
-After=network.target
+After=network.target postgresql.service redis.service openbook-api.service
+Wants=postgresql.service redis.service
 
 [Service]
 User=$USER
@@ -157,8 +184,9 @@ Group=$GROUP
 WorkingDirectory=$INSTALL_DIR
 ExecStart=$BIN_DIR/openbook-worker
 Restart=always
+RestartSec=5
 LimitNOFILE=65535
-EnvironmentFile=-/etc/default/openbook
+EnvironmentFile=/etc/default/openbook
 
 [Install]
 WantedBy=multi-user.target
@@ -166,9 +194,10 @@ EOF
 
 systemctl daemon-reload
 systemctl enable openbook-api openbook-worker
-systemctl start openbook-api openbook-worker
+systemctl restart openbook-api openbook-worker
 
 log_info "OpenBook $VERSION installed successfully!"
+log_info "Configuration file: /etc/default/openbook"
 log_info "Status:"
 systemctl status openbook-api --no-pager
 systemctl status openbook-worker --no-pager

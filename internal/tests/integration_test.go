@@ -42,7 +42,7 @@ func TestIntegration_FullFlow(t *testing.T) {
 
 	// Clean up tables before test (Dangerous! Only for test DB)
 	_, err = db.Exec(`
-		TRUNCATE TABLE audit_logs, deployments, commits, trees, blobs, branches, sites, workspaces CASCADE
+		TRUNCATE TABLE audit_logs, deployments, commits, trees, blobs, branches, sites, workspaces, users, environments CASCADE
 	`)
 	require.NoError(t, err)
 
@@ -51,7 +51,7 @@ func TestIntegration_FullFlow(t *testing.T) {
 		Addr: redisAddr,
 	})
 	defer rdb.Close()
-	
+
 	ctx := context.Background()
 	err = rdb.Ping(ctx).Err()
 	require.NoError(t, err)
@@ -66,18 +66,25 @@ func TestIntegration_FullFlow(t *testing.T) {
 	gitUC := usecase.NewGitUseCase(gitRepo)
 
 	// 5. Run Scenario:
-	//    Create Workspace -> Create Site -> Create Branch -> Commit -> Deploy -> Check Audit -> Check Redis
+	//    Create User -> Create Workspace -> Create Site -> Create Branch -> Commit -> Deploy -> Check Audit -> Check Redis
 
-	// 5.1 Create Workspace (Manual DB insert as we don't have UC for it yet)
-	workspaceID := uuid.New()
+	// 5.1 Create User (Manual DB insert)
 	ownerID := uuid.New()
+	_, err = db.Exec(`
+		INSERT INTO users (id, email, password_hash, full_name, created_at, updated_at)
+		VALUES ($1, 'test@openbook.dev', 'hash', 'Test User', NOW(), NOW())
+	`, ownerID)
+	require.NoError(t, err)
+
+	// 5.2 Create Workspace (Manual DB insert as we don't have UC for it yet)
+	workspaceID := uuid.New()
 	_, err = db.Exec(`
 		INSERT INTO workspaces (id, name, slug, settings, owner_id, created_at, updated_at)
 		VALUES ($1, 'Test Workspace', 'test-ws', '{}', $2, NOW(), NOW())
 	`, workspaceID, ownerID)
 	require.NoError(t, err)
 
-	// 5.2 Create Site (Manual DB insert)
+	// 5.3 Create Site (Manual DB insert)
 	siteID := uuid.New()
 	_, err = db.Exec(`
 		INSERT INTO sites (id, workspace_id, name, slug, plan, default_environment, is_public, created_at, updated_at)
@@ -105,8 +112,15 @@ func TestIntegration_FullFlow(t *testing.T) {
 	assert.NotNil(t, commit)
 	assert.NotEmpty(t, commit.TreeHash)
 
+	// 5.4.1 Create Environment (Manual DB insert)
+	envID := uuid.New()
+	_, err = db.Exec(`
+		INSERT INTO environments (id, workspace_id, site_id, name, branch_id, is_active, created_at)
+		VALUES ($1, $2, $3, 'production', $4, true, NOW())
+	`, envID, workspaceID, siteID, branch.ID)
+	require.NoError(t, err)
+
 	// 5.5 Deploy (using DeployUC)
-	envID := uuid.New() // Placeholder environment
 	deployment := &domain.Deployment{
 		WorkspaceID:   workspaceID,
 		SiteID:        siteID,
@@ -135,7 +149,7 @@ func TestIntegration_FullFlow(t *testing.T) {
 	}).Result()
 	require.NoError(t, err)
 	assert.NotEmpty(t, streams)
-	
+
 	msg := streams[0].Messages[0]
 	var event struct {
 		DeploymentID string `json:"deployment_id"`

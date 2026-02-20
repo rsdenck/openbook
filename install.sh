@@ -50,8 +50,8 @@ fi
 
 # Fallback if API fails or no release found
 if [ -z "$VERSION" ] || [ "$VERSION" == "null" ]; then
-    log_info "Could not detect latest version from API. Defaulting to v1.0.0"
-    VERSION="v1.0.0"
+    log_info "Could not detect latest version from API. Defaulting to v1.0.2"
+    VERSION="v1.0.2"
 fi
 
 log_info "Target Version: $VERSION"
